@@ -15,6 +15,7 @@ let ALLOWED_ORIGINS: Set<String> = {
     var origins: Set<String> = [
         "http://localhost",
         "http://127.0.0.1",
+        "https://4square-slabs.pages.dev",
         "null"  // file:// sends "null" as origin
     ]
     // Add any port variants for local dev
