@@ -1,0 +1,14 @@
+# Swift build artifacts
+helper/.build/
+helper/.swiftpm/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+*.xcodeproj/
+*.xcworkspace/
+
+# Logs
+*.log

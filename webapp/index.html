@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Slab Scanner</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Slab Scanner</h1>
+      <p class="subtitle">Drop scans in order &middot; <a href="#" id="scanOrderToggle" class="scan-order-link">Front first</a></p>
+    </header>
+
+    <!-- Helper connection status -->
+    <div id="helperStatus" class="helper-status disconnected">
+      <span id="helperDot" class="helper-dot"></span>
+      <span id="helperLabel">Connecting to helper...</span>
+    </div>
+
+    <div id="status" class="status loading">Initializing...</div>
+
+    <div id="scanControls" class="scan-controls hidden">
+      <button id="scanBtn" class="scan-btn" disabled>Scan Front</button>
+      <select id="dpiSelect" class="dpi-select">
+        <option value="300">300 DPI</option>
+        <option value="600">600 DPI</option>
+      </select>
+      <div id="scanStatus" class="scan-status"></div>
+    </div>
+
+    <div id="dropzone" class="dropzone disabled">
+      <input type="file" id="fileInput" accept="image/*" multiple>
+      <div class="dropzone-content">
+        <div class="dropzone-icon">&#128247;</div>
+        <p id="dropLabel">Drop next scan</p>
+        <p class="hint">or click to browse &middot; Ctrl+V to paste</p>
+      </div>
+    </div>
+
+    <div id="queue" class="queue"></div>
+    <div id="pairsGrid" class="pairs-grid"></div>
+
+    <div id="actions" class="actions hidden">
+      <div class="download-row">
+        <input type="text" id="folderName" class="folder-input" placeholder="Folder name (e.g. Pokemon Slabs)">
+        <button id="downloadAll" class="primary-btn">Save to Folder</button>
+        <button id="chooseFolderBtn" class="secondary-btn" title="Pick a folder to save into">Choose Folder</button>
+      </div>
+      <div class="actions-row">
+        <button id="copyAll" class="secondary-btn">Copy All Certs</button>
+        <button id="resetBtn" class="secondary-btn">Start Over</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lightbox -->
+  <div id="lightbox" class="lightbox"><img id="lightboxImg" src=""></div>
+
+  <script src="helper.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
