@@ -57,6 +57,18 @@ const SlabHelper = (() => {
         return;
       }
 
+      // Scanner found/removed — update capabilities live
+      if (msg.type === 'scan_found') {
+        capabilities.scan = true;
+        _updateStatus('connected');
+        return;
+      }
+      if (msg.type === 'scan_removed') {
+        capabilities.scan = false;
+        _updateStatus('connected');
+        return;
+      }
+
       // Scanner messages forwarded to callback
       if (msg.type && msg.type.startsWith('scan_')) {
         if (onScanMessage) onScanMessage(msg);
