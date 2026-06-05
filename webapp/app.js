@@ -42,24 +42,25 @@
 
   /* ── HELPER CONNECTION ────────────────────────────────────────────── */
   SlabHelper.onStatusChange = (state, caps) => {
-    helperStatusEl.className = 'helper-status ' + state;
+    helperStatusEl.className = 'helper-pill ' + state;
     if (state === 'connected') {
-      helperLabel.textContent = 'Helper connected' +
-        (caps.scan ? ' (scanner + OCR)' : ' (OCR only)');
+      helperLabel.textContent = caps.scan ? 'Scanner + OCR' : 'OCR only';
       if (caps.scan) {
         scanAvailable = true;
         scanControlsEl.classList.remove('hidden');
         scanBtnEl.disabled = false;
         scanStatusEl.textContent = 'Ready';
+      } else {
+        scanAvailable = false;
+        scanControlsEl.classList.add('hidden');
       }
       readyForNext();
     } else if (state === 'connecting') {
-      helperLabel.textContent = 'Connecting to helper...';
+      helperLabel.textContent = 'Connecting...';
     } else {
-      helperLabel.textContent = 'Helper not connected \u2014 drag-drop still works, but no OCR';
+      helperLabel.textContent = 'No helper';
       scanAvailable = false;
       scanControlsEl.classList.add('hidden');
-      // Still allow drag-drop without OCR
       readyForNext();
     }
   };
@@ -789,10 +790,29 @@
   }
 
   function addQueueTag(label, count) {
-    const tag = document.createElement('span');
-    tag.className = 'queue-tag ' + label.toLowerCase();
-    tag.textContent = label + ' \u00d7' + count;
-    queueEl.appendChild(tag);
+    // Update or create tag
+    const cls = label.toLowerCase();
+    let tag = queueEl.querySelector('.queue-tag.' + cls);
+    if (!tag) {
+      tag = document.createElement('span');
+      tag.className = 'queue-tag ' + cls;
+      queueEl.appendChild(tag);
+    }
+    const prev = parseInt(tag.dataset.count || '0');
+    const total = prev + count;
+    tag.dataset.count = total;
+    tag.textContent = label + ' \u00d7' + total;
+  }
+
+  function updateStats() {
+    const statsRow = document.getElementById('statsRow');
+    if (pairs.length === 0) { statsRow.classList.add('hidden'); return; }
+    statsRow.classList.remove('hidden');
+    const paired = pairs.filter(p => p.frontCanvas && p.backCanvas).length;
+    const awaiting = pairs.length - paired;
+    document.getElementById('statTotal').textContent = pairs.length;
+    document.getElementById('statPaired').textContent = paired;
+    document.getElementById('statAwaiting').textContent = awaiting;
   }
 
   function openLightbox(src) {
@@ -840,29 +860,23 @@
     actionsEl.classList.toggle('hidden', pairs.length === 0);
   }
 
-  function makeCertLine(p, side, pairIdx) {
+  /** Create a clickable/editable cert label that sits under an image. */
+  function makeCertUnder(p, side) {
     const cert = side === 'front' ? p.frontCert : p.backCert;
-    const el = document.createElement('div');
-    el.style.cssText = 'display:flex;align-items:center;gap:4px;justify-content:center;margin:2px 0;';
-    const label = document.createElement('span');
-    label.style.cssText = 'font-size:0.6rem;color:#888;text-transform:uppercase;min-width:28px;';
-    label.textContent = side === 'front' ? 'F:' : 'B:';
-    const certText = document.createElement('div');
-    certText.className = 'pair-cert' + (cert ? '' : ' pending');
-    certText.textContent = cert || 'click to set';
-    certText.title = 'Click to edit ' + side + ' cert';
-    certText.style.cssText = 'cursor:pointer;font-size:0.85rem;';
     const otherCert = side === 'front' ? p.backCert : p.frontCert;
-    if (cert && otherCert && cert !== otherCert) {
-      certText.style.color = '#ff4444';
-    }
-    certText.addEventListener('click', () => {
+    const el = document.createElement('div');
+    el.className = 'cert-under' + (cert ? '' : ' pending') +
+      (cert && otherCert && cert !== otherCert ? ' mismatch' : '');
+    el.textContent = cert || 'click to set';
+    el.title = 'Click to edit';
+    el.addEventListener('click', (ev) => {
+      ev.stopPropagation();
       const input = document.createElement('input');
       input.type = 'text';
       input.value = cert || '';
-      input.placeholder = 'cert number';
-      input.style.cssText = 'font-size:0.85rem;font-weight:700;text-align:center;width:12ch;padding:2px 6px;border:2px solid #4af;border-radius:4px;background:#1a1a2e;color:#fff;';
-      certText.replaceWith(input);
+      input.placeholder = 'cert #';
+      input.style.cssText = 'font-size:0.62rem;font-weight:700;text-align:center;width:10ch;padding:1px 3px;border:1px solid #4af;border-radius:3px;background:#0a0a14;color:#fff;font-family:monospace;';
+      el.replaceWith(input);
       input.focus();
       input.select();
       const finish = () => {
@@ -884,7 +898,6 @@
       input.addEventListener('keydown', e => { if (e.key === 'Enter') finish(); if (e.key === 'Escape') renderPairs(); });
       input.addEventListener('blur', finish);
     });
-    el.append(label, certText);
     return el;
   }
 
@@ -892,103 +905,120 @@
     pairsGrid.innerHTML = '';
     for (let i = 0; i < pairs.length; i++) {
       const p = pairs[i];
-      const row = document.createElement('div');
-      row.className = 'pair-row';
+      const hasBoth = p.frontCert && p.backCert;
+      const mismatch = hasBoth && p.frontCert !== p.backCert;
 
+      const card = document.createElement('div');
+      card.className = 'pair-card' + (mismatch ? ' mismatch-card' : '');
+
+      // Images row with certs underneath
+      const imagesRow = document.createElement('div');
+      imagesRow.className = 'pair-images';
+
+      // Front side
       const frontSide = document.createElement('div');
       frontSide.className = 'pair-side';
-      frontSide.addEventListener('dragover', e => { e.preventDefault(); frontSide.classList.add('drop-hover'); });
-      frontSide.addEventListener('dragleave', () => frontSide.classList.remove('drop-hover'));
-      frontSide.addEventListener('drop', e => { e.preventDefault(); frontSide.classList.remove('drop-hover'); handleSlabDrop(e, i, 'front'); });
+      const frontImg = document.createElement('div');
+      frontImg.className = 'pair-img' + (p.frontCanvas ? '' : ' waiting');
+      frontImg.addEventListener('dragover', e => { e.preventDefault(); frontImg.classList.add('drop-hover'); });
+      frontImg.addEventListener('dragleave', () => frontImg.classList.remove('drop-hover'));
+      frontImg.addEventListener('drop', e => { e.preventDefault(); frontImg.classList.remove('drop-hover'); handleSlabDrop(e, i, 'front'); });
       if (p.frontCanvas) {
         const img = document.createElement('img');
-        img.src = p.frontCanvas.toDataURL('image/jpeg', 0.88);
+        img.src = p.frontCanvas.toDataURL('image/jpeg', 0.85);
         img.addEventListener('click', () => openLightbox(p.frontCanvas.toDataURL('image/jpeg', 0.95)));
         img.draggable = true;
         img.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', i + ':front'); });
         const lbl = document.createElement('div');
-        lbl.className = 'pair-side-label';
+        lbl.className = 'side-label';
         lbl.textContent = 'front';
-        frontSide.append(img, lbl);
+        frontImg.append(img, lbl);
       } else {
-        frontSide.classList.add('waiting');
-        frontSide.textContent = 'awaiting front';
+        frontImg.textContent = 'awaiting';
       }
+      frontSide.appendChild(frontImg);
+      frontSide.appendChild(makeCertUnder(p, 'front'));
 
-      const center = document.createElement('div');
-      center.className = 'pair-center';
+      // Back side
+      const backSide = document.createElement('div');
+      backSide.className = 'pair-side';
+      const backImg = document.createElement('div');
+      backImg.className = 'pair-img' + (p.backCanvas ? '' : ' waiting');
+      backImg.addEventListener('dragover', e => { e.preventDefault(); backImg.classList.add('drop-hover'); });
+      backImg.addEventListener('dragleave', () => backImg.classList.remove('drop-hover'));
+      backImg.addEventListener('drop', e => { e.preventDefault(); backImg.classList.remove('drop-hover'); handleSlabDrop(e, i, 'back'); });
+      if (p.backCanvas) {
+        const img = document.createElement('img');
+        img.src = p.backCanvas.toDataURL('image/jpeg', 0.85);
+        img.addEventListener('click', () => openLightbox(p.backCanvas.toDataURL('image/jpeg', 0.95)));
+        img.draggable = true;
+        img.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', i + ':back'); });
+        const lbl = document.createElement('div');
+        lbl.className = 'side-label';
+        lbl.textContent = 'back';
+        backImg.append(img, lbl);
+      } else {
+        backImg.textContent = 'awaiting';
+      }
+      backSide.appendChild(backImg);
+      backSide.appendChild(makeCertUnder(p, 'back'));
 
-      const hasBoth = p.frontCert && p.backCert;
-      const mismatch = hasBoth && p.frontCert !== p.backCert;
+      imagesRow.append(frontSide, backSide);
+      card.appendChild(imagesRow);
 
-      const frontCertEl = makeCertLine(p, 'front', i);
-      const backCertEl = makeCertLine(p, 'back', i);
-
-      let mismatchEl = null;
+      // Status line
+      const statusLine = document.createElement('div');
+      statusLine.className = 'pair-status';
       if (mismatch) {
-        mismatchEl = document.createElement('div');
-        mismatchEl.style.cssText = 'color:#ff4444;font-size:0.7rem;font-weight:700;text-align:center;padding:2px 0;';
-        mismatchEl.textContent = '\u26a0 CERT MISMATCH';
-        mismatchEl.title = 'Front: ' + p.frontCert + ' \u2260 Back: ' + p.backCert;
+        statusLine.classList.add('warn');
+        statusLine.textContent = '\u26a0 Cert mismatch';
+      } else if (p.frontCanvas && p.backCanvas && hasBoth) {
+        statusLine.classList.add('ok');
+        statusLine.textContent = 'Matched';
+      } else if (!p.frontCanvas || !p.backCanvas) {
+        statusLine.classList.add('wait');
+        statusLine.textContent = p.frontCanvas ? 'Awaiting back' : 'Awaiting front';
+      } else {
+        statusLine.classList.add('wait');
+        statusLine.textContent = 'No cert detected';
       }
+      card.appendChild(statusLine);
 
+      // Action buttons
       const btns = document.createElement('div');
-      btns.className = 'pair-btns';
+      btns.className = 'pair-actions';
       const copyB = document.createElement('button');
-      copyB.textContent = 'Copy Cert';
+      copyB.textContent = 'Copy';
       copyB.disabled = !p.cert;
       copyB.addEventListener('click', () => {
         navigator.clipboard.writeText(p.cert);
         copyB.textContent = 'Copied!';
-        setTimeout(() => { copyB.textContent = 'Copy Cert'; }, 1200);
+        setTimeout(() => { copyB.textContent = 'Copy'; }, 1200);
       });
       const dlB = document.createElement('button');
-      dlB.textContent = 'Download';
+      dlB.textContent = 'Save';
       dlB.addEventListener('click', () => downloadPair(p, i));
-      const delB = document.createElement('button');
-      delB.textContent = 'Delete';
-      delB.style.cssText = 'color:#f66;border-color:#f66;';
-      delB.addEventListener('click', () => {
-        pairs.splice(i, 1);
-        renderPairs();
-        actionsEl.classList.toggle('hidden', pairs.length === 0);
-      });
       const swapB = document.createElement('button');
-      swapB.textContent = 'Swap F/B';
-      swapB.title = 'Swap front and back images';
+      swapB.textContent = 'Swap';
       swapB.addEventListener('click', () => {
         [p.frontCanvas, p.backCanvas] = [p.backCanvas, p.frontCanvas];
         [p.frontCert, p.backCert] = [p.backCert, p.frontCert];
         renderPairs();
       });
+      const delB = document.createElement('button');
+      delB.textContent = 'Del';
+      delB.className = 'del-btn';
+      delB.addEventListener('click', () => {
+        pairs.splice(i, 1);
+        renderPairs();
+        actionsEl.classList.toggle('hidden', pairs.length === 0);
+      });
       btns.append(copyB, dlB, swapB, delB);
-      center.append(frontCertEl);
-      if (mismatchEl) center.append(mismatchEl);
-      center.append(backCertEl, btns);
+      card.appendChild(btns);
 
-      const backSide = document.createElement('div');
-      backSide.className = 'pair-side';
-      backSide.addEventListener('dragover', e => { e.preventDefault(); backSide.classList.add('drop-hover'); });
-      backSide.addEventListener('dragleave', () => backSide.classList.remove('drop-hover'));
-      backSide.addEventListener('drop', e => { e.preventDefault(); backSide.classList.remove('drop-hover'); handleSlabDrop(e, i, 'back'); });
-      if (p.backCanvas) {
-        const img = document.createElement('img');
-        img.src = p.backCanvas.toDataURL('image/jpeg', 0.88);
-        img.addEventListener('click', () => openLightbox(p.backCanvas.toDataURL('image/jpeg', 0.95)));
-        img.draggable = true;
-        img.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', i + ':back'); });
-        const lbl = document.createElement('div');
-        lbl.className = 'pair-side-label';
-        lbl.textContent = 'back';
-        backSide.append(img, lbl);
-      } else {
-        backSide.classList.add('waiting');
-        backSide.textContent = 'awaiting back';
-      }
-
-      row.append(frontSide, center, backSide);
-      pairsGrid.appendChild(row);
+      pairsGrid.appendChild(card);
     }
+    updateStats();
   }
 
   /* ════════════════════════════════════════════════════════════════════
@@ -1125,6 +1155,7 @@
     pairsGrid.innerHTML = '';
     queueEl.innerHTML = '';
     actionsEl.classList.add('hidden');
+    updateStats();
     readyForNext();
   }
 })();

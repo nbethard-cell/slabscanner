@@ -3,33 +3,53 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Slab Scanner</title>
+  <title>4Square Slab Scanner</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="container">
-    <header>
-      <h1>Slab Scanner</h1>
-      <p class="subtitle">Drop scans in order &middot; <a href="#" id="scanOrderToggle" class="scan-order-link">Front first</a></p>
-    </header>
 
-    <!-- Helper connection status -->
-    <div id="helperStatus" class="helper-status disconnected">
-      <span id="helperDot" class="helper-dot"></span>
-      <span id="helperLabel">Connecting to helper...</span>
+    <!-- Header -->
+    <div class="header">
+      <div class="brand">
+        <div class="brand-icon">
+          <span class="filled"></span>
+          <span class="outline"></span>
+          <span class="outline"></span>
+          <span class="filled"></span>
+        </div>
+        <div class="brand-text">
+          <h1>4Square</h1>
+          <div class="tagline">Slab Scanner</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div id="helperStatus" class="helper-pill disconnected">
+          <span id="helperDot" class="dot"></span>
+          <span id="helperLabel">Connecting...</span>
+        </div>
+        <div class="scan-order">
+          <a href="#" id="scanOrderToggle">Front first</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div id="scanControls" class="scan-controls-inline hidden">
+        <button id="scanBtn" class="scan-btn" disabled>Scan Front</button>
+        <select id="dpiSelect" class="dpi-sel">
+          <option value="300">300 DPI</option>
+          <option value="600">600 DPI</option>
+        </select>
+        <span id="scanStatus" class="scan-status-text"></span>
+      </div>
+      <div id="queue" class="controls-right"></div>
     </div>
 
     <div id="status" class="status loading">Initializing...</div>
 
-    <div id="scanControls" class="scan-controls hidden">
-      <button id="scanBtn" class="scan-btn" disabled>Scan Front</button>
-      <select id="dpiSelect" class="dpi-select">
-        <option value="300">300 DPI</option>
-        <option value="600">600 DPI</option>
-      </select>
-      <div id="scanStatus" class="scan-status"></div>
-    </div>
-
+    <!-- Dropzone -->
     <div id="dropzone" class="dropzone disabled">
       <input type="file" id="fileInput" accept="image/*" multiple>
       <div class="dropzone-content">
@@ -39,19 +59,23 @@
       </div>
     </div>
 
-    <div id="queue" class="queue"></div>
-    <div id="pairsGrid" class="pairs-grid"></div>
+    <!-- Stats -->
+    <div id="statsRow" class="stats hidden">
+      <div class="stat"><strong id="statTotal">0</strong> slabs</div>
+      <div class="stat"><strong id="statPaired">0</strong> paired</div>
+      <div class="stat"><strong id="statAwaiting">0</strong> awaiting</div>
+    </div>
 
-    <div id="actions" class="actions hidden">
-      <div class="download-row">
-        <input type="text" id="folderName" class="folder-input" placeholder="Folder name (e.g. Pokemon Slabs)">
-        <button id="downloadAll" class="primary-btn">Save to Folder</button>
-        <button id="chooseFolderBtn" class="secondary-btn" title="Pick a folder to save into">Choose Folder</button>
-      </div>
-      <div class="actions-row">
-        <button id="copyAll" class="secondary-btn">Copy All Certs</button>
-        <button id="resetBtn" class="secondary-btn">Start Over</button>
-      </div>
+    <!-- Pairs grid -->
+    <div id="pairsGrid" class="pairs"></div>
+
+    <!-- Actions -->
+    <div id="actions" class="actions-bar hidden">
+      <input type="text" id="folderName" class="folder-input" placeholder="Folder name (e.g. Pokemon Slabs)">
+      <button id="downloadAll" class="primary-btn">Save All</button>
+      <button id="chooseFolderBtn" class="secondary-btn" title="Pick a folder to save into">Choose Folder</button>
+      <button id="copyAll" class="secondary-btn">Copy Certs</button>
+      <button id="resetBtn" class="secondary-btn">Start Over</button>
     </div>
   </div>
 
