@@ -47,6 +47,17 @@
       <div id="queue" class="controls-right"></div>
     </div>
 
+    <!-- Install banner (shown when helper not connected) -->
+    <div id="installBanner" class="install-banner hidden">
+      <div class="install-header">Helper not detected — install to enable OCR + scanning</div>
+      <p class="install-desc">Open Terminal and paste this command (requires Xcode Command Line Tools):</p>
+      <div class="install-cmd-row">
+        <code id="installCmd" class="install-cmd">git clone https://github.com/nbethard-cell/slabscanner.git ~/slabscanner &amp;&amp; ~/slabscanner/install/install.command</code>
+        <button id="copyInstallCmd" class="install-copy-btn" title="Copy to clipboard">Copy</button>
+      </div>
+      <p class="install-hint">After install, refresh this page. The helper auto-starts on login — one-time setup.</p>
+    </div>
+
     <div id="status" class="status loading">Initializing...</div>
 
     <!-- Dropzone -->

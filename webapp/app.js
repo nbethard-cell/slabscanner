@@ -40,11 +40,24 @@
   const scanStatusEl   = document.getElementById('scanStatus');
   let scanAvailable    = false;
 
+  /* ── INSTALL BANNER ─────────────────────────────────────────────── */
+  const installBanner = document.getElementById('installBanner');
+  const copyInstallBtn = document.getElementById('copyInstallCmd');
+  copyInstallBtn.addEventListener('click', () => {
+    const cmd = 'git clone https://github.com/nbethard-cell/slabscanner.git ~/slabscanner && ~/slabscanner/install/install.command';
+    navigator.clipboard.writeText(cmd);
+    copyInstallBtn.textContent = 'Copied!';
+    setTimeout(() => { copyInstallBtn.textContent = 'Copy'; }, 1500);
+  });
+
   /* ── HELPER CONNECTION ────────────────────────────────────────────── */
+  let helperConnectedOnce = false;
   SlabHelper.onStatusChange = (state, caps) => {
     helperStatusEl.className = 'helper-pill ' + state;
     if (state === 'connected') {
+      helperConnectedOnce = true;
       helperLabel.textContent = caps.scan ? 'Scanner + OCR' : 'OCR only';
+      installBanner.classList.add('hidden');
       if (caps.scan) {
         scanAvailable = true;
         scanControlsEl.classList.remove('hidden');
@@ -61,6 +74,12 @@
       helperLabel.textContent = 'No helper';
       scanAvailable = false;
       scanControlsEl.classList.add('hidden');
+      // Show install banner after first failed connection attempt
+      if (!helperConnectedOnce) {
+        setTimeout(() => {
+          if (!SlabHelper.connected) installBanner.classList.remove('hidden');
+        }, 4000);
+      }
       readyForNext();
     }
   };
