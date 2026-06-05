@@ -430,5 +430,6 @@ server.start()
 
 log("Helper running. Press Ctrl+C to stop.")
 
-// Keep the process alive
-dispatchMain()
+// Main thread RunLoop — required for ImageCaptureCore device discovery callbacks.
+// dispatchMain() doesn't run a RunLoop, so ICDeviceBrowser callbacks never fire.
+RunLoop.main.run()
