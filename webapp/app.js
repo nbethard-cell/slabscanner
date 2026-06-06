@@ -1103,6 +1103,24 @@
 
   function pairName(p, idx) { return p.cert || ('unknown_' + (idx + 1)); }
 
+  /** Build a CSV string logging all pairs. */
+  function buildCertsCSV() {
+    const rows = ['Pair,Front Cert,Back Cert,Status,Front File,Back File'];
+    for (let i = 0; i < pairs.length; i++) {
+      const p = pairs[i];
+      const name = pairName(p, i);
+      const fc = p.frontCert || '';
+      const bc = p.backCert || '';
+      const hasBoth = p.frontCanvas && p.backCanvas;
+      const mismatch = fc && bc && fc !== bc;
+      const status = mismatch ? 'MISMATCH' : (hasBoth && fc ? 'Matched' : 'Incomplete');
+      const frontFile = p.frontCanvas ? name + '_front.jpg' : '';
+      const backFile = p.backCanvas ? name + '_back.jpg' : '';
+      rows.push([i + 1, fc, bc, status, frontFile, backFile].join(','));
+    }
+    return rows.join('\n');
+  }
+
   function downloadPair(p, idx) {
     const name = pairName(p, idx);
     if (p.frontCanvas) downloadCanvas(p.frontCanvas, name + '_front.jpg');
@@ -1134,8 +1152,13 @@
           await new Promise(r => setTimeout(r, 100));
         }
       }
+      // Save CSV log
+      const csv = buildCertsCSV();
+      const csvBase64 = btoa(unescape(encodeURIComponent(csv)));
+      SlabHelper.saveFile(folder, 'certs.csv', csvBase64);
+      saved++;
       downloadAllBtn.textContent = 'Saved ' + saved + ' files!';
-      setTimeout(() => { downloadAllBtn.disabled = false; downloadAllBtn.textContent = 'Save to Folder'; }, 2000);
+      setTimeout(() => { downloadAllBtn.disabled = false; downloadAllBtn.textContent = 'Save All'; }, 2000);
       return;
     }
 
@@ -1145,12 +1168,21 @@
       downloadAllBtn.textContent = 'Saving...';
       try {
         const saved = await saveToPickedFolder(pairs);
-        downloadAllBtn.textContent = 'Saved ' + saved + ' files!';
+        // Save CSV to same folder
+        const folderInput2 = document.getElementById('folderName');
+        const subName = (folderInput2.value || '').trim();
+        let csvDir = pickedDirHandle;
+        if (subName) csvDir = await csvDir.getDirectoryHandle(subName, { create: true });
+        const csvFh = await csvDir.getFileHandle('certs.csv', { create: true });
+        const csvW = await csvFh.createWritable();
+        await csvW.write(buildCertsCSV());
+        await csvW.close();
+        downloadAllBtn.textContent = 'Saved ' + (saved + 1) + ' files!';
       } catch (e) {
         console.error('[save] File System Access error:', e);
         downloadAllBtn.textContent = 'Save failed \u2014 try again';
       }
-      setTimeout(() => { downloadAllBtn.disabled = false; downloadAllBtn.textContent = 'Save to Folder'; }, 2000);
+      setTimeout(() => { downloadAllBtn.disabled = false; downloadAllBtn.textContent = 'Save All'; }, 2000);
       return;
     }
 
@@ -1159,6 +1191,14 @@
       downloadPair(pairs[i], i);
       await new Promise(r => setTimeout(r, 250));
     }
+    // CSV as browser download
+    const csvBlob = new Blob([buildCertsCSV()], { type: 'text/csv' });
+    const csvUrl = URL.createObjectURL(csvBlob);
+    const csvA = document.createElement('a');
+    csvA.href = csvUrl;
+    csvA.download = 'certs.csv';
+    csvA.click();
+    URL.revokeObjectURL(csvUrl);
   }
 
   function copyAllCerts() {
