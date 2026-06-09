@@ -586,64 +586,50 @@
 
     const crops = [];
     for (let i = 0; i < boxes.length; i++) {
-      setStatus(label + ': OCR slab ' + (i + 1) + '/' + boxes.length + '...', 'loading');
       const slabCanvas = cropRegion(canvas, boxes[i]);
-      const cert = await extractCertNumber(slabCanvas);
+      let cert = null;
+      if (isFront) {
+        setStatus(label + ': OCR slab ' + (i + 1) + '/' + boxes.length + '...', 'loading');
+        cert = await extractCertNumber(slabCanvas);
+        console.log('[ocr]', label, 'slab', i + 1, '\u2192 cert:', cert || '(none)');
+      }
       const stdCanvas = standardizeCrop(slabCanvas);
       crops.push({ canvas: stdCanvas, cert });
-      console.log('[ocr]', label, 'slab', i + 1, '\u2192 cert:', cert || '(none)');
     }
 
     // ── Pairing ──
-    for (let ci = 0; ci < crops.length; ci++) {
-      const c = crops[ci];
-      let matched = false;
+    if (isFront) {
+      for (let ci = 0; ci < crops.length; ci++) {
+        const c = crops[ci];
+        let matched = false;
 
-      if (c.cert) {
-        // Exact cert match
-        const match = pairs.find(p => p.cert === c.cert && (
-          (isFront && !p.frontCanvas) || (!isFront && !p.backCanvas)
-        ));
-        if (match) {
-          if (isFront) { match.frontCanvas = c.canvas; match.frontCert = c.cert; }
-          else { match.backCanvas = c.canvas; match.backCert = c.cert; }
-          matched = true;
-        }
-
-        if (!matched) {
-          const existing = pairs.find(p => p.cert === c.cert);
+        if (c.cert) {
+          const existing = pairs.find(p => p.cert === c.cert && !p.frontCanvas);
           if (existing) {
-            if (isFront) { existing.frontCanvas = c.canvas; existing.frontCert = c.cert; }
-            else { existing.backCanvas = c.canvas; existing.backCert = c.cert; }
+            existing.frontCanvas = c.canvas;
+            existing.frontCert = c.cert;
             matched = true;
           }
         }
-      }
 
-      // Positional fallback
-      if (!matched && !c.cert) {
-        const orphan = pairs.filter(p =>
-          (isFront && !p.frontCanvas) || (!isFront && !p.backCanvas)
-        )[ci];
-        if (orphan) {
-          if (isFront) { orphan.frontCanvas = c.canvas; orphan.frontCert = c.cert; }
-          else { orphan.backCanvas = c.canvas; orphan.backCert = c.cert; }
-          matched = true;
+        if (!matched) {
+          pairs.push({
+            cert: c.cert,
+            frontCert: c.cert,
+            backCert: null,
+            frontCanvas: c.canvas,
+            backCanvas: null,
+          });
         }
       }
-
-      if (!matched) {
-        pairs.push({
-          cert: c.cert,
-          frontCert: isFront ? c.cert : null,
-          backCert: isFront ? null : c.cert,
-          frontCanvas: isFront ? c.canvas : null,
-          backCanvas: isFront ? null : c.canvas,
-        });
+    } else {
+      // Match backs by position — slabs flip in place
+      const awaitingBack = pairs.filter(p => p.frontCanvas && !p.backCanvas);
+      for (let i = 0; i < crops.length && i < awaitingBack.length; i++) {
+        awaitingBack[i].backCanvas = crops[i].canvas;
+        awaitingBack[i].backCert = awaitingBack[i].frontCert;
       }
     }
-
-    fuzzyMergeOrphans();
 
     addQueueTag(label, crops.length);
     imageIndex++;
